@@ -25,7 +25,9 @@ def test_mixed_verdicts_failed_banner_and_counts():
         "passed": 1,
         "failed": 1,
         "certified": False,
+        "score": 50,
     }
+    assert "50" in md  # reliability score shown in the report
     # JSON must be serializable
     json.dumps(data)
 

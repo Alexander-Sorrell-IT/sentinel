@@ -4,19 +4,32 @@ Pipeline: generate scenarios -> run the agent-under-test -> evaluate each
 trajectory -> build the Reliability Report. Critical failures are handed to an
 optional callback (the Jira/Slack notifier in production; a recorder in tests).
 
-Run the local money-shot:  python -m sentinel.run
+Run the local money-shot + leaderboard climb:  python -m sentinel.run
 """
 from __future__ import annotations
 
+import tempfile
 from collections.abc import Callable
+from pathlib import Path
 
 from sentinel.contracts import PolicyContract, Trajectory, Verdict
+from sentinel.leaderboard import make_entry, record_entry, render_leaderboard
 from sentinel.report import build_report
 from sentinel.scenarios import generate
 from sentinel.verdict import evaluate
 
 SutRun = Callable[[dict], Trajectory]
 OnCritical = Callable[[Verdict], None]
+
+
+def evaluate_all(
+    policy: PolicyContract, sut_run: SutRun, *, enforce: bool = False
+) -> list[Verdict]:
+    """Run every scenario against the agent-under-test and return the verdicts."""
+    return [
+        evaluate(scenario, sut_run(scenario.inputs), policy, enforce=enforce)
+        for scenario in generate(policy)
+    ]
 
 
 def run_sentinel(
@@ -27,17 +40,11 @@ def run_sentinel(
     on_critical: OnCritical | None = None,
 ) -> tuple[str, dict]:
     """Run the full reliability suite; return (markdown_report, json_dict)."""
-    verdicts: list[Verdict] = []
-    for scenario in generate(policy):
-        trajectory = sut_run(scenario.inputs)
-        verdict = evaluate(scenario, trajectory, policy, enforce=enforce)
-        verdicts.append(verdict)
-        if (
-            on_critical is not None
-            and not verdict.passed
-            and verdict.severity == "critical"
-        ):
-            on_critical(verdict)
+    verdicts = evaluate_all(policy, sut_run, enforce=enforce)
+    if on_critical is not None:
+        for verdict in verdicts:
+            if not verdict.passed and verdict.severity == "critical":
+                on_critical(verdict)
     return build_report(verdicts)
 
 
@@ -50,18 +57,29 @@ def _demo() -> None:
         forbidden_tools=["delete_claim"],
         sensitive_fields=["ssn"],
     )
+    board = Path(tempfile.gettempdir()) / "sentinel_leaderboard.json"
+    board.unlink(missing_ok=True)
 
     print("=" * 72)
     print("HOOK LAYER OFF (detection) — the agent runs unguarded")
     print("=" * 72)
-    md_off, _ = run_sentinel(policy, sut_run, enforce=False)
-    print(md_off)
+    v1 = evaluate_all(policy, sut_run, enforce=False)
+    print(build_report(v1)[0])
+    record_entry(make_entry("claims-agent", "v1 (guardrail off)", "claude-opus", v1), board)
 
     print("=" * 72)
     print("HOOK LAYER ON (enforcement) — violations blocked before execution")
     print("=" * 72)
-    md_on, _ = run_sentinel(policy, sut_run, enforce=True)
-    print(md_on)
+    v2 = evaluate_all(policy, sut_run, enforce=True)
+    print(build_report(v2)[0])
+    entries = record_entry(
+        make_entry("claims-agent", "v2 (guardrail on)", "claude-opus", v2), board
+    )
+
+    print("=" * 72)
+    print("RELIABILITY LEADERBOARD — the revision climbs from FAILED to CERTIFIED")
+    print("=" * 72)
+    print(render_leaderboard(entries))
 
 
 if __name__ == "__main__":

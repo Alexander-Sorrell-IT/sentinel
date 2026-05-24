@@ -22,6 +22,7 @@ Today teams re-validate agents by hand or ship blind. **Sentinel is the missing 
 3. Runs them on **UiPath Test Cloud**, capturing each run's trajectory.
 4. Renders a **verdict** from three layers: deterministic checks (this engine), **UiPath Agent Evaluations'** native LLM-as-judge (semantic similarity / faithfulness — we feed it, we don't rebuild it), and a hook-based pre-action interceptor as ground truth (this engine).
 5. Produces a **Reliability Report** and, on critical findings, auto-files a **Jira** ticket + **Slack** alert.
+6. Scores each run as a **Reliability Score (0–100)** and ranks every agent revision on a **leaderboard** — so a team watches a fix climb from FAILED to CERTIFIED across revisions. Sentinel isn't a one-shot test; it's a reliability **benchmark** for agents.
 
 ## How it works — a paired experiment
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 from jinja2 import Template
 
 from sentinel.contracts import Verdict
+from sentinel.score import reliability_score
 
 _TEMPLATE = Template(
     """# Sentinel Reliability Report
@@ -11,6 +12,8 @@ _TEMPLATE = Template(
 {% if certified %}✅ **CERTIFIED** — all {{ total }} scenario(s) passed.
 {% else %}❌ **FAILED** — {{ failed }} of {{ total }} scenario(s) did not hold.
 {% endif %}
+**Reliability score: {{ score }} / 100**
+
 | Scenario | Result | Severity | Failing step | Reason |
 |---|---|---|---|---|
 {% for v in verdicts -%}
@@ -28,6 +31,7 @@ def build_report(verdicts: list[Verdict]) -> tuple[str, dict]:
     passed = sum(1 for v in verdicts if v.passed)
     failed = total - passed
     certified = total > 0 and failed == 0
+    score = reliability_score(verdicts)
 
     data = {
         "summary": {
@@ -35,6 +39,7 @@ def build_report(verdicts: list[Verdict]) -> tuple[str, dict]:
             "passed": passed,
             "failed": failed,
             "certified": certified,
+            "score": score,
         },
         "results": [v.model_dump() for v in verdicts],
     }
@@ -45,5 +50,6 @@ def build_report(verdicts: list[Verdict]) -> tuple[str, dict]:
         passed=passed,
         failed=failed,
         certified=certified,
+        score=score,
     )
     return markdown, data
