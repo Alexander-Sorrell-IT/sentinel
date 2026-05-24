@@ -20,8 +20,17 @@ Today teams re-validate agents by hand or ship blind. **Sentinel is the missing 
 1. Takes an AI-infused workflow (a UiPath Maestro flow containing an AI agent + a human-approval gate).
 2. Auto-generates focused **reliability test scenarios** native evaluations don't cover (HITL bypass, wait-state skip, tool-scope violation).
 3. Runs them on **UiPath Test Cloud**, capturing each run's trajectory.
-4. Renders a **verdict** from three layers: deterministic checks, an LLM-as-judge, and a hook-based pre-action interceptor as ground truth.
+4. Renders a **verdict** from three layers: deterministic checks (this engine), **UiPath Agent Evaluations'** native LLM-as-judge (semantic similarity / faithfulness — we feed it, we don't rebuild it), and a hook-based pre-action interceptor as ground truth (this engine).
 5. Produces a **Reliability Report** and, on critical findings, auto-files a **Jira** ticket + **Slack** alert.
+
+## How it works — a paired experiment
+
+Sentinel runs every scenario under two conditions:
+
+- **Detection (guardrail OFF):** the agent runs unguarded. A failing scenario is the evidence that, without controls, the violation *actually executes* in production.
+- **Enforcement (guardrail ON):** the pre-action interceptor blocks the violation before it executes. A passing scenario is the evidence that the control *prevents* it.
+
+Both halves are required — either one alone proves nothing. The **OFF → FAILED / ON → CERTIFIED** flip is the proof that the guardrails actually fire.
 
 ## Architecture
 

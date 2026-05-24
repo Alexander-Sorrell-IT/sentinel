@@ -21,6 +21,17 @@ def _require_env(name: str) -> str:
     return value
 
 
+def _adf(text: str) -> dict:
+    """Wrap plain text in Atlassian Document Format (required by Jira Cloud v3)."""
+    return {
+        "type": "doc",
+        "version": 1,
+        "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": text}]}
+        ],
+    }
+
+
 def notify_critical(verdict: Verdict) -> dict:
     """Open a Jira issue and post a Slack alert for a failing verdict.
 
@@ -42,7 +53,7 @@ def notify_critical(verdict: Verdict) -> dict:
             "fields": {
                 "project": {"key": jira_project},
                 "summary": summary,
-                "description": description,
+                "description": _adf(description),
                 "issuetype": {"name": "Bug"},
             }
         },
