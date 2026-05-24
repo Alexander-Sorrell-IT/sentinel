@@ -63,3 +63,16 @@ def test_forbidden_tool_fails_critical_first():
     assert v.passed is False
     assert v.severity == "critical"
     assert v.failing_step == 0
+
+
+def test_enforcement_mode_prevents_violation_and_passes():
+    # Hook layer ON: the blocked action is prevented before execution -> control
+    # held -> the scenario passes.
+    traj = Trajectory(
+        steps=[_step("lookup_claim", False), _step("approve_claim", False)],
+        final_output="approved",
+    )
+    v = evaluate(_scenario(), traj, _policy(), enforce=True)
+    assert v.passed is True
+    assert v.severity == "none"
+    assert v.failing_step is None
