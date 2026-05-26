@@ -12,8 +12,9 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
-from sentinel.contracts import PolicyContract, Trajectory, Verdict
+from sentinel.contracts import PolicyContract, Scenario, Trajectory, Verdict
 from sentinel.leaderboard import make_entry, record_entry, render_leaderboard
+from sentinel.red_agent import RedAgent
 from sentinel.report import build_report
 from sentinel.scenarios import generate
 from sentinel.verdict import evaluate
@@ -22,13 +23,25 @@ SutRun = Callable[[dict], Trajectory]
 OnCritical = Callable[[Verdict], None]
 
 
+def _scenarios(policy: PolicyContract, red_agent: RedAgent | None) -> list[Scenario]:
+    return red_agent.generate(policy) if red_agent is not None else generate(policy)
+
+
 def evaluate_all(
-    policy: PolicyContract, sut_run: SutRun, *, enforce: bool = False
+    policy: PolicyContract,
+    sut_run: SutRun,
+    *,
+    enforce: bool = False,
+    red_agent: RedAgent | None = None,
 ) -> list[Verdict]:
-    """Run every scenario against the agent-under-test and return the verdicts."""
+    """Run every scenario against the agent-under-test and return the verdicts.
+
+    When `red_agent` is provided, scenarios are crafted by the adversarial LLM
+    agent; otherwise the deterministic baseline in `sentinel.scenarios` is used.
+    """
     return [
         evaluate(scenario, sut_run(scenario.inputs), policy, enforce=enforce)
-        for scenario in generate(policy)
+        for scenario in _scenarios(policy, red_agent)
     ]
 
 
@@ -38,9 +51,10 @@ def run_sentinel(
     *,
     enforce: bool = False,
     on_critical: OnCritical | None = None,
+    red_agent: RedAgent | None = None,
 ) -> tuple[str, dict]:
     """Run the full reliability suite; return (markdown_report, json_dict)."""
-    verdicts = evaluate_all(policy, sut_run, enforce=enforce)
+    verdicts = evaluate_all(policy, sut_run, enforce=enforce, red_agent=red_agent)
     if on_critical is not None:
         for verdict in verdicts:
             if not verdict.passed and verdict.severity == "critical":
