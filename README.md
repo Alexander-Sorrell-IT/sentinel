@@ -61,4 +61,5 @@ Prerequisites: Python 3.11+, and (for the agent-under-test and platform integrat
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE) — free for noncommercial use.
+Commercial use requires a paid license: matrixbuilderops@proton.me
