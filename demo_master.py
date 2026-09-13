@@ -26,6 +26,22 @@ import tempfile
 import time
 from pathlib import Path
 
+PIPE = "/tmp/sentinel_demo_pipe"
+_pipe_fd: int | None = None
+
+
+def _signal(phase: str) -> None:
+    """Send a phase signal to the teleprompter window (best-effort, non-blocking)."""
+    global _pipe_fd
+    try:
+        if not os.path.exists(PIPE):
+            return
+        if _pipe_fd is None:
+            _pipe_fd = os.open(PIPE, os.O_WRONLY | os.O_NONBLOCK)
+        os.write(_pipe_fd, (phase + "\n").encode())
+    except OSError:
+        _pipe_fd = None  # teleprompter gone — demo continues unaffected
+
 from sentinel.contracts import PolicyContract
 from sentinel.leaderboard import make_entry, record_entry, render_leaderboard
 from sentinel.report import build_report
@@ -118,6 +134,7 @@ def main(use_llm: bool = True) -> int:
         red_agent = RedAgent(llm)
 
     # ── OPENING ────────────────────────────────────────────────────────────
+    _signal("OPENING")
     _bar("SENTINEL  ·  Agentic Security Hackathon  ·  SF 2026", CYAN)
     _card([
         "WHAT THIS IS:",
@@ -137,6 +154,7 @@ def main(use_llm: bool = True) -> int:
     ], WHITE)
 
     # ── PHASE 1: Hook OFF ──────────────────────────────────────────────────
+    _signal("PHASE1")
     _bar("PHASE 1  —  HOOK LAYER OFF  (no protection)", RED)
     _card([
         "The agent runs unguarded against a real policy:",
@@ -157,6 +175,7 @@ def main(use_llm: bool = True) -> int:
     record_entry(make_entry("claims-agent", "v1  guardrail-OFF", model_name, v_off), board)
 
     # ── PHASE 2: Wasmer ────────────────────────────────────────────────────
+    _signal("PHASE2")
     _bar("PHASE 2  —  WASMER  (ephemeral WebAssembly container)", CYAN)
     _card([
         "The same attack now hits the Wasmer interceptor.",
@@ -178,6 +197,7 @@ def main(use_llm: bool = True) -> int:
         print(f"  {AMBER}Wasmer: {e}{RESET}")
 
     # ── PHASE 3: Tenki ─────────────────────────────────────────────────────
+    _signal("PHASE3")
     _bar("PHASE 3  —  TENKI CLOUD  (remote Linux sandbox)", BLUE)
     _card([
         "The same attack now hits the Tenki interceptor.",
@@ -199,6 +219,7 @@ def main(use_llm: bool = True) -> int:
         print(f"  {AMBER}Tenki: {e}{RESET}")
 
     # ── PHASE 4: Hook ON ───────────────────────────────────────────────────
+    _signal("PHASE4")
     _bar("PHASE 4  —  HOOK LAYER ON  (enforcement active)", GREEN)
     _card([
         "Same agent. Same LLM-crafted attacks. One control added.",
@@ -218,10 +239,12 @@ def main(use_llm: bool = True) -> int:
     )
 
     # ── PHASE 5: Leaderboard ───────────────────────────────────────────────
+    _signal("LEADERBOARD")
     _bar("RELIABILITY LEADERBOARD", AMBER)
     print(render_leaderboard(entries))
 
     # ── CLOSING ────────────────────────────────────────────────────────────
+    _signal("CLOSING")
     _card([
         f"{BOLD}Score: 0 → 100.  FAILED → CERTIFIED.  Same agent.  One control.{RESET}{WHITE}",
         "",
