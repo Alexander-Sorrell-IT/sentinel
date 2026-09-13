@@ -1,46 +1,84 @@
 #!/bin/bash
-# SENTINEL — Launch script
-# Opens teleprompter in a new Terminal window, then runs the main demo here.
-# Screen-record both windows side by side. No camera. No talking.
-
-set -e
+# SENTINEL — One command. Hit enter. Everything happens automatically.
+# - Sources .env for keys (never committed)
+# - Opens teleprompter in a NEW Terminal window, positioned RIGHT half
+# - Positions THIS window on the LEFT half
+# - Counts down 3 seconds
+# - Runs the full demo — teleprompter advances in sync
+# No camera. No talking. No window arranging.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIPE="/tmp/sentinel_demo_pipe"
+VENV="$SCRIPT_DIR/.venv/bin/python"
+ENV_FILE="$SCRIPT_DIR/.env"
 
-# Clean up old pipe
+# ── Load keys from .env ────────────────────────────────────────────────────
+if [ -f "$ENV_FILE" ]; then
+    set -o allexport
+    source "$ENV_FILE"
+    set +o allexport
+fi
+
+: "${ANTHROPIC_API_KEY:?Missing — add ANTHROPIC_API_KEY to .env}"
+: "${WASMER_TOKEN:?Missing — add WASMER_TOKEN to .env}"
+: "${TENKI_SESSION:?Missing — add TENKI_SESSION to .env}"
+
+# ── Clean up old pipe ──────────────────────────────────────────────────────
 rm -f "$PIPE"
 
-# Keys — set these in your environment or a local .env file, never commit them
-# export ANTHROPIC_API_KEY="sk-ant-..."
-# export WASMER_TOKEN="wap_..."
-# export TENKI_SESSION="<sandbox-id>"
-: "${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY before running}"
-: "${WASMER_TOKEN:?Set WASMER_TOKEN before running}"
-: "${TENKI_SESSION:?Set TENKI_SESSION before running}"
-VENV="$SCRIPT_DIR/.venv/bin/python"
+# ── Get screen dimensions ──────────────────────────────────────────────────
+SCREEN=$(osascript -e 'tell application "Finder" to get bounds of window of desktop')
+W=$(echo "$SCREEN" | awk -F',' '{gsub(/ /,"",$3); print $3}')
+H=$(echo "$SCREEN" | awk -F',' '{gsub(/ /,"",$4); print $4}')
+HALF=$(( W / 2 ))
 
-echo ""
-echo "  Opening teleprompter window..."
-echo "  Arrange it on the RIGHT side of your screen."
-echo ""
-
-# Open teleprompter in a new Terminal window
-osascript <<EOF
+# ── Open teleprompter on the RIGHT ────────────────────────────────────────
+osascript <<APPLESCRIPT
 tell application "Terminal"
-    do script "cd '$SCRIPT_DIR' && '$VENV' teleprompter.py"
+    set tpWin to do script "cd '$SCRIPT_DIR' && '$VENV' teleprompter.py"
+    delay 0.6
+    set bounds of front window to {$HALF, 0, $W, $H}
+    try
+        set current settings of front window to settings set "Pro"
+    end try
+    set font size of front window to 16
+end tell
+APPLESCRIPT
+
+# ── Position demo window on the LEFT ──────────────────────────────────────
+osascript <<APPLESCRIPT
+tell application "Terminal"
+    set bounds of front window to {0, 0, $HALF, $H}
+    try
+        set current settings of front window to settings set "Pro"
+    end try
+    set font size of front window to 15
     activate
 end tell
-EOF
+APPLESCRIPT
 
-# Give the teleprompter a moment to start and create the pipe
-sleep 2
-
-echo "  Starting demo in 3 seconds..."
-echo "  Arrange THIS window on the LEFT side."
+# ── Wait for teleprompter pipe ─────────────────────────────────────────────
 echo ""
-sleep 3
+echo "  ╔══════════════════════════════════════╗"
+echo "  ║   SENTINEL  ·  Demo launching...     ║"
+echo "  ╚══════════════════════════════════════╝"
+echo ""
 
-# Run the main demo — signals go to the teleprompter automatically
+for i in $(seq 1 20); do
+    [ -e "$PIPE" ] && break
+    sleep 0.3
+done
+
+[ ! -e "$PIPE" ] && echo "  WARNING: teleprompter not ready — continuing anyway"
+
+echo "  3..."
+sleep 1
+echo "  2..."
+sleep 1
+echo "  1..."
+sleep 1
+echo ""
+
+# ── Run ───────────────────────────────────────────────────────────────────
 cd "$SCRIPT_DIR"
 "$VENV" demo_master.py
