@@ -28,8 +28,12 @@ rm -f "$PIPE"
 
 # ── Get screen dimensions ──────────────────────────────────────────────────
 SCREEN=$(osascript -e 'tell application "Finder" to get bounds of window of desktop')
-W=$(echo "$SCREEN" | awk -F',' '{gsub(/ /,"",$3); print $3}')
-H=$(echo "$SCREEN" | awk -F',' '{gsub(/ /,"",$4); print $4}')
+# SCREEN is like "0, 0, 2560, 1440" — grab 3rd and 4th comma-separated fields
+W=$(echo "$SCREEN" | tr -d ' ' | cut -d',' -f3)
+H=$(echo "$SCREEN" | tr -d ' ' | cut -d',' -f4)
+# Fallback to sensible defaults if detection fails
+W=${W:-1920}
+H=${H:-1080}
 HALF=$(( W / 2 ))
 
 # ── Open teleprompter on the RIGHT ────────────────────────────────────────
