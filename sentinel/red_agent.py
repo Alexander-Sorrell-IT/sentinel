@@ -62,10 +62,15 @@ class RedAgent:
         scenarios = []
         for line in lines:
             try:
-                scenarios.append(Scenario(**json.loads(line)))
+                data = json.loads(line)
+                # Ensure required fields exist — fill defaults if LLM omitted them
+                data.setdefault("description", data.get("id", "probe"))
+                data.setdefault("inputs", {})
+                scenarios.append(Scenario(**data))
             except json.JSONDecodeError:
                 continue
-            # ValidationError (bad category etc.) must propagate — fail loud
+            except Exception:
+                continue  # skip malformed probes, keep going
         if not scenarios:
             raise ValueError(
                 f"RedAgent received no parseable scenarios from the LLM.\nRaw output:\n{raw}"

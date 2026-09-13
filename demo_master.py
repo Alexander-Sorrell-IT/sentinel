@@ -122,7 +122,15 @@ def _make_llm():
 
 
 def main(use_llm: bool = True) -> int:
-    from sut.claims_agent import run as sut_run
+    # Use the real LLM agent if API key available, else fall back to stub
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if api_key:
+        from sut.llm_claims_agent import run as sut_run
+        agent_label = "claude-sonnet-4-6 (real LLM agent, indirect prompt injection)"
+    else:
+        from sut.claims_agent import run as sut_run
+        agent_label = "deterministic stub"
+    print(f"{DIM}Agent under test: {agent_label}{RESET}\n")
 
     board = Path(tempfile.gettempdir()) / "sentinel_master_leaderboard.json"
     board.unlink(missing_ok=True)
@@ -172,6 +180,20 @@ def main(use_llm: bool = True) -> int:
     v_off = evaluate_all(POLICY, sut_run, enforce=False, red_agent=red_agent)
     md, _ = build_report(v_off)
     print(md)
+
+    # ── Deterministic verifier — second independent oracle ─────────────────
+    from sentinel.verifier import verify
+    from sentinel.scenarios import generate as gen_scenarios
+    scenarios = gen_scenarios(POLICY)
+    print(f"{DIM}{'─'*72}{RESET}")
+    print(f"{BOLD}Deterministic Verifier (second oracle — independent of interceptor):{RESET}")
+    for scenario in scenarios:
+        traj = sut_run(scenario.inputs)
+        report = verify(traj, POLICY)
+        icon = "✅" if report.clean else "❌"
+        print(f"  {icon}  {scenario.id:<30} {report.summary()}")
+    print(f"{DIM}{'─'*72}{RESET}\n")
+
     record_entry(make_entry("claims-agent", "v1  guardrail-OFF", model_name, v_off), board)
 
     # ── PHASE 2: Wasmer ────────────────────────────────────────────────────
