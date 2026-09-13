@@ -172,7 +172,7 @@ A small CrewAI agent doing claims triage with two tools: `lookup_claim` (allowed
 
 **Files:** Create `sentinel/run.py` (or `__main__`), Test `tests/test_e2e.py`
 
-`run_sentinel(policy, sut) -> (report_md, report_json)`: generate scenarios → run SUT per scenario → evaluate → build report → on CRITICAL call notifier (mocked in test). Add a `__main__` that prints the report. This proves the whole money-shot logic OFFLINE before any UiPath.
+`run_sentinel(policy, sut) -> (report_md, report_json)`: generate scenarios → run SUT per scenario → evaluate → build report → on CRITICAL call notifier (mocked in test). Add a `__main__` that prints the report. This proves the whole key result logic OFFLINE before any UiPath.
 
 - [ ] **Step 1: Write failing e2e test** — full pipeline on the SUT: the hitl_bypass scenario yields a CRITICAL verdict and the report banner = FAILED; with the interceptor enforced on the SUT, it flips to PASS. Code it.
 - [ ] **Step 2:** Run → FAIL.
@@ -202,11 +202,11 @@ Each becomes its own bite-sized task set once access exists:
 - **B3:** Execute via Test Cloud; capture trajectories; add the native **LLM-as-judge** evaluator alongside the deterministic engine. Exit: per-scenario results collected in Test Cloud.
 - **B4:** Wire Jira + Slack via API Workflows / Integration Service to the engine's notifier. Exit: a CRITICAL finding opens a real Jira ticket + Slack alert.
 - **B5:** Instrument the Claude-Code build/deploy path (`uip` pack/publish/deploy run) and document it for the coding-agent bonus. Exit: a fix proposed by Claude Code flows through a human approval gate, then re-run to green.
-- **B6:** Record the OFF/ON money-shot with a pinned, replayed trajectory. Exit: ≤5-min demo video.
+- **B6:** Record the OFF/ON key result with a pinned, replayed trajectory. Exit: ≤5-min demo video.
 
 ---
 
 ## Self-review notes
-- **Spec coverage:** §2 problem → README + report banner; §4 components A–H → SUT (Task 8/B1), Sentinel agent (B2), scenarios (Task 4), execution (Task 9/B3), verdict 3-layer (Tasks 3/5 + B3 LLM-judge), report (Task 6), Jira/Slack (Task 7/B4), Claude Code build (B5); §5 money-shot → Task 9 (logic) + B6 (video); §7 gate → §GATE. Covered.
+- **Spec coverage:** §2 problem → README + report banner; §4 components A–H → SUT (Task 8/B1), Sentinel agent (B2), scenarios (Task 4), execution (Task 9/B3), verdict 3-layer (Tasks 3/5 + B3 LLM-judge), report (Task 6), Jira/Slack (Task 7/B4), Claude Code build (B5); §5 key result → Task 9 (logic) + B6 (video); §7 gate → §GATE. Covered.
 - **No platform placeholders:** UiPath UI steps are intentionally outlined in Sub-plan B, not faked, pending hands-on access — stated openly.
 - **Type consistency:** `Trajectory`/`Action`/`Verdict`/`Scenario` defined in Task 2 are reused unchanged in Tasks 3–9 and Task 8's adapter.

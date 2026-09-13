@@ -1,4 +1,4 @@
-"""End-to-end engine test: the local money-shot (OFF -> FAILED, ON -> CERTIFIED)."""
+"""End-to-end engine test: the local key result (OFF -> FAILED, ON -> CERTIFIED)."""
 from sentinel.contracts import PolicyContract
 from sentinel.leaderboard import make_entry, render_leaderboard
 from sentinel.run import evaluate_all, run_sentinel

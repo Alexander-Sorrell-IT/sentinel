@@ -74,7 +74,7 @@ SUT definition ─────────┴─► [B Sentinel Agent] ─► [C
 
 ---
 
-## 5. Demo money-shot (≤90s inside the 5-min video)
+## 5. Demo key result (≤90s inside the 5-min video)
 
 1. Show the claims SUT. Sentinel runs the scenario set with the **hook ground-truth layer OFF.**
 2. The CrewAI agent **skips the Action Center approval gate and auto-approves a non-compliant claim.** Trajectory replay highlights the exact leaking step.
@@ -98,7 +98,7 @@ SUT definition ─────────┴─► [B Sentinel Agent] ─► [C
 **Before writing any Sentinel code:** stand up one CrewAI agent behind one Maestro "start and wait for external agent" Service task. Trigger it and confirm you can observe its **intermediate tool calls / pre-action intent** (not just final input/output).
 
 - **CONFIRMS the plan:** full trajectory visible → architecture holds, build as specced.
-- **KILLS the external path:** only I/O visible → **pivot the SUT to a UiPath-hosted coded agent** (first-party hooks, guaranteed trajectory). Same harness, same report, same Jira/Slack, same money-shot — only the thing-under-test changes. Project survives either way.
+- **KILLS the external path:** only I/O visible → **pivot the SUT to a UiPath-hosted coded agent** (first-party hooks, guaranteed trajectory). Same harness, same report, same Jira/Slack, same key result — only the thing-under-test changes. Project survives either way.
 
 This single experiment converts the largest unknown into a settled decision with 4 weeks of runway left. It also generates the **Best Product Feedback** submission (real, specific platform feedback).
 
@@ -119,7 +119,7 @@ Test Cloud (core) · Maestro (SUT + test orchestration, durable execution) · Ag
 | Technical Execution / exception-handling | Pre-execution interception + durable Maestro orchestration = real failure handling. |
 | Completeness | Tightly-bounded MVP → e2e + repo + README + ≤5-min video achievable solo. |
 | Creativity & Innovation | "Prove the guardrails fire" — no native equivalent; nobody built it in 2025. |
-| Presentation | One dramatic, legible OFF/ON money-shot carries the demo. |
+| Presentation | One dramatic, legible OFF/ON key result carries the demo. |
 
 **Plausible prize stack:** Grand $8k + Best of Test Cloud $5k + Most Creative $3k + Best Demo $3k + Best Cross-Platform $1.5k + Best First-Time Builder $1.5k + Best Product Feedback $1.5k. (Grand-stacks-with-track: unverified — confirm in rules.)
 

@@ -4,7 +4,7 @@ Pipeline: generate scenarios -> run the agent-under-test -> evaluate each
 trajectory -> build the Reliability Report. Critical failures are handed to an
 optional callback (the Jira/Slack notifier in production; a recorder in tests).
 
-Run the local money-shot + leaderboard climb:  python -m sentinel.run
+Run the local end-to-end demo + leaderboard climb:  python -m sentinel.run
 """
 from __future__ import annotations
 
