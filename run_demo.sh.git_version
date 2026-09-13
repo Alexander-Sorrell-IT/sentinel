@@ -1,0 +1,85 @@
+#!/bin/bash
+# SENTINEL — One command. Hit enter. Everything happens automatically.
+# - Creates the pipe
+# - Opens teleprompter in a NEW Terminal window, positioned RIGHT side
+# - Positions THIS window on the LEFT side
+# - Counts down 3 seconds
+# - Runs the full demo — teleprompter advances in sync
+# - No camera. No talking. No arranging windows.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PIPE="/tmp/sentinel_demo_pipe"
+VENV="$SCRIPT_DIR/.venv/bin/python"
+
+# Keys — hardcoded locally only, not in git
+ANTHROPIC_API_KEY="sk-ant-REDACTED"
+WASMER_TOKEN="wap_REDACTED"
+TENKI_SESSION="SANDBOX_ID"
+export ANTHROPIC_API_KEY WASMER_TOKEN TENKI_SESSION
+
+# ── Clean up old pipe ───────────────────────────────────────────────────────
+rm -f "$PIPE"
+
+# ── Get screen dimensions via osascript ────────────────────────────────────
+SCREEN=$(osascript -e 'tell application "Finder" to get bounds of window of desktop')
+# Returns: "0, 0, WIDTH, HEIGHT"
+W=$(echo "$SCREEN" | awk -F',' '{gsub(/ /,"",$3); print $3}')
+H=$(echo "$SCREEN" | awk -F',' '{gsub(/ /,"",$4); print $4}')
+HALF=$(( W / 2 ))
+
+# ── Open teleprompter in a new Terminal window, positioned RIGHT ────────────
+osascript <<APPLESCRIPT
+tell application "Terminal"
+    -- Open new window running the teleprompter
+    set tpWin to do script "cd '$SCRIPT_DIR' && '$VENV' teleprompter.py"
+    delay 0.5
+    -- Position it on the RIGHT half
+    set bounds of front window to {$HALF, 0, $W, $H}
+    -- Dark profile if available
+    try
+        set current settings of front window to settings set "Pro"
+    end try
+    set font size of front window to 16
+end tell
+APPLESCRIPT
+
+# ── Position THIS Terminal window on the LEFT half ─────────────────────────
+osascript <<APPLESCRIPT
+tell application "Terminal"
+    set bounds of front window to {0, 0, $HALF, $H}
+    try
+        set current settings of front window to settings set "Pro"
+    end try
+    set font size of front window to 15
+    activate
+end tell
+APPLESCRIPT
+
+# ── Wait for teleprompter to create the pipe ───────────────────────────────
+echo ""
+echo "  ╔══════════════════════════════════════╗"
+echo "  ║   SENTINEL  ·  Demo launching...     ║"
+echo "  ╚══════════════════════════════════════╝"
+echo ""
+echo "  Waiting for teleprompter..."
+
+for i in $(seq 1 20); do
+    if [ -e "$PIPE" ]; then break; fi
+    sleep 0.3
+done
+
+if [ ! -e "$PIPE" ]; then
+    echo "  WARNING: Teleprompter pipe not ready — running without it."
+fi
+
+echo "  Starting in 3..."
+sleep 1
+echo "  2..."
+sleep 1
+echo "  1..."
+sleep 1
+echo ""
+
+# ── Run the demo ───────────────────────────────────────────────────────────
+cd "$SCRIPT_DIR"
+"$VENV" demo_master.py

@@ -63,14 +63,16 @@ class RedAgent:
         for line in lines:
             try:
                 data = json.loads(line)
-                # Ensure required fields exist — fill defaults if LLM omitted them
+                # Fill optional missing fields LLM sometimes omits
                 data.setdefault("description", data.get("id", "probe"))
                 data.setdefault("inputs", {})
                 scenarios.append(Scenario(**data))
             except json.JSONDecodeError:
                 continue
+            except ValidationError:
+                raise  # bad category etc. must propagate — fail loud
             except Exception:
-                continue  # skip malformed probes, keep going
+                continue
         if not scenarios:
             raise ValueError(
                 f"RedAgent received no parseable scenarios from the LLM.\nRaw output:\n{raw}"
