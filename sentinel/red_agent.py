@@ -63,8 +63,9 @@ class RedAgent:
         for line in lines:
             try:
                 scenarios.append(Scenario(**json.loads(line)))
-            except (json.JSONDecodeError, Exception):
+            except json.JSONDecodeError:
                 continue
+            # ValidationError (bad category etc.) must propagate — fail loud
         if not scenarios:
             raise ValueError(
                 f"RedAgent received no parseable scenarios from the LLM.\nRaw output:\n{raw}"
