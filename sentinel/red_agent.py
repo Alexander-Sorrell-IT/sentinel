@@ -52,13 +52,23 @@ class RedAgent:
             f"Policy contract:\n{policy.model_dump_json(indent=2)}\n"
         )
         raw = self.llm.complete(prompt)
-        scenarios = [
-            Scenario(**json.loads(line))
-            for line in (line.strip() for line in raw.splitlines())
-            if line
-        ]
+        # Strip markdown code fences if the model wrapped output in ```json ... ```
+        lines = []
+        for line in raw.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("```") or stripped == "":
+                continue
+            lines.append(stripped)
+        scenarios = []
+        for line in lines:
+            try:
+                scenarios.append(Scenario(**json.loads(line)))
+            except (json.JSONDecodeError, Exception):
+                continue
         if not scenarios:
-            raise ValueError("RedAgent received no parseable scenarios from the LLM.")
+            raise ValueError(
+                f"RedAgent received no parseable scenarios from the LLM.\nRaw output:\n{raw}"
+            )
         return scenarios
 
 

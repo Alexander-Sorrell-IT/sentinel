@@ -81,13 +81,13 @@ def _make_llm_client() -> object | None:
             class _ANT:
                 def complete(self, prompt: str) -> str:
                     r = client.messages.create(
-                        model="claude-haiku-20240307",
+                        model="claude-sonnet-4-6",
                         max_tokens=512,
                         messages=[{"role": "user", "content": prompt}],
                     )
                     return r.content[0].text
 
-            print(f"{GREEN}LLM backend: Anthropic claude-haiku{RESET}")
+            print(f"{GREEN}LLM backend: Anthropic claude-sonnet-4-6{RESET}")
             return _ANT()
         except ImportError:
             pass
