@@ -26,21 +26,30 @@ import tempfile
 import time
 from pathlib import Path
 
-PIPE = "/tmp/sentinel_demo_pipe"
-_pipe_fd: int | None = None
+STATE_FILE = "/tmp/sentinel_state"
+
+# Maps phase name → slide index in teleprompter.swift groups[]
+_PHASE_INDEX = {
+    "OPENING":     0,
+    "PHASE1":      1,
+    "PHASE2":      2,
+    "PHASE3":      3,
+    "PHASE4":      4,
+    "LEADERBOARD": 5,
+    "CLOSING":     6,
+}
 
 
 def _signal(phase: str) -> None:
-    """Send a phase signal to the teleprompter window (best-effort, non-blocking)."""
-    global _pipe_fd
+    """Write slide index to state file — teleprompter polls and advances."""
+    idx = _PHASE_INDEX.get(phase)
+    if idx is None:
+        return
     try:
-        if not os.path.exists(PIPE):
-            return
-        if _pipe_fd is None:
-            _pipe_fd = os.open(PIPE, os.O_WRONLY | os.O_NONBLOCK)
-        os.write(_pipe_fd, (phase + "\n").encode())
+        with open(STATE_FILE, "w") as f:
+            f.write(str(idx))
     except OSError:
-        _pipe_fd = None  # teleprompter gone — demo continues unaffected
+        pass  # teleprompter missing — demo continues unaffected
 
 from sentinel.contracts import PolicyContract
 from sentinel.leaderboard import make_entry, record_entry, render_leaderboard
