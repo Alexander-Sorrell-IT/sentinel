@@ -9,6 +9,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIPE="/tmp/sentinel_demo_pipe"
+READY_PIPE="/tmp/sentinel_ready_pipe"
 VENV="$SCRIPT_DIR/.venv/bin/python"
 ENV_FILE="$SCRIPT_DIR/.env"
 
@@ -23,9 +24,10 @@ fi
 : "${WASMER_TOKEN:?Missing — add WASMER_TOKEN to .env}"
 : "${TENKI_SESSION:?Missing — add TENKI_SESSION to .env}"
 
-# ── Create pipe FIRST so teleprompter can open it for reading ─────────────
-rm -f "$PIPE"
+# ── Create pipes FIRST so teleprompter can open them ─────────────────────
+rm -f "$PIPE" "$READY_PIPE"
 mkfifo "$PIPE"
+mkfifo "$READY_PIPE"
 
 # ── Get screen dimensions ──────────────────────────────────────────────────
 SCREEN=$(osascript -e 'tell application "Finder" to get bounds of window of desktop')
@@ -62,16 +64,17 @@ tell application "Terminal"
 end tell
 APPLESCRIPT
 
-# ── Wait for teleprompter to connect (it opens pipe for reading) ───────────
+# ── Wait for teleprompter READY signal ────────────────────────────────────
 echo ""
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║   SENTINEL  ·  Demo launching...     ║"
+echo "  ║   SENTINEL  ·  Waiting for panels... ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 
-# Give the new Terminal window time to start and open the pipe for reading
-sleep 3
+# Block here until teleprompter writes READY to the ready pipe
+read -r _ready < "$READY_PIPE"
 
+echo "  Teleprompter ready. Starting in..."
 echo "  3..."
 sleep 1
 echo "  2..."

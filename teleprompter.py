@@ -187,17 +187,25 @@ def _show(slide_key: str) -> None:
 
 
 def main() -> None:
+    READY_PIPE = "/tmp/sentinel_ready_pipe"
+
     # Create the pipe if it doesn't exist
     if not os.path.exists(PIPE):
         os.mkfifo(PIPE)
 
     print(CLEAR, end="", flush=True)
     print(f"\n  {BOLD}{CYAN}SENTINEL Teleprompter{RESET}")
-    print(f"  {DIM}Waiting for demo_master.py to start...{RESET}")
-    print(f"  {DIM}(Run demo_master.py in the other window now){RESET}\n")
+    print(f"  {DIM}Waiting for demo to start...{RESET}\n")
 
-    # Open for reading — blocks until the writer opens the other end
-    with open(PIPE, "r") as pipe:
+    # Open for reading — blocks until the writer opens the other end.
+    # Once open, immediately signal run_demo.sh that we're ready.
+    pipe_fd = open(PIPE, "r")
+    # Write READY to unblock run_demo.sh
+    if os.path.exists(READY_PIPE):
+        with open(READY_PIPE, "w") as rp:
+            rp.write("READY\n")
+
+    with pipe_fd as pipe:
         for raw in pipe:
             signal = raw.strip()
             if not signal:
