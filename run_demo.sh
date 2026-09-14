@@ -23,8 +23,9 @@ fi
 : "${WASMER_TOKEN:?Missing — add WASMER_TOKEN to .env}"
 : "${TENKI_SESSION:?Missing — add TENKI_SESSION to .env}"
 
-# ── Clean up old pipe ──────────────────────────────────────────────────────
+# ── Create pipe FIRST so teleprompter can open it for reading ─────────────
 rm -f "$PIPE"
+mkfifo "$PIPE"
 
 # ── Get screen dimensions ──────────────────────────────────────────────────
 SCREEN=$(osascript -e 'tell application "Finder" to get bounds of window of desktop')
@@ -61,19 +62,15 @@ tell application "Terminal"
 end tell
 APPLESCRIPT
 
-# ── Wait for teleprompter pipe ─────────────────────────────────────────────
+# ── Wait for teleprompter to connect (it opens pipe for reading) ───────────
 echo ""
 echo "  ╔══════════════════════════════════════╗"
 echo "  ║   SENTINEL  ·  Demo launching...     ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 
-for i in $(seq 1 20); do
-    [ -e "$PIPE" ] && break
-    sleep 0.3
-done
-
-[ ! -e "$PIPE" ] && echo "  WARNING: teleprompter not ready — continuing anyway"
+# Give the new Terminal window time to start and open the pipe for reading
+sleep 3
 
 echo "  3..."
 sleep 1

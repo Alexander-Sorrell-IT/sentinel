@@ -232,6 +232,13 @@ def main(use_llm: bool = True) -> int:
         "booting in under a second, billed per second.",
     ], WHITE)
     try:
+        # Auto-resume sandbox if it paused between runs
+        import subprocess as _sp
+        _tenki = os.path.expanduser("~/.local/bin/tenki")
+        session = os.environ.get("TENKI_SESSION", "sentinel-demo")
+        _sp.run([_tenki, "sandbox", "resume", session],
+                capture_output=True, timeout=15)
+        import time as _t; _t.sleep(2)  # brief wait for RUNNING state
         tr = run_in_tenki(ATTACK, POLICY_DICT, approved=False)
         status = f"{BOLD}{RED}BLOCKED{RESET}"
         print(f"  {status}  {ATTACK['tool']:<20} {tr.elapsed_ms:>6.0f}ms  "
