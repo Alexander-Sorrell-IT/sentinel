@@ -289,7 +289,31 @@ def main(use_llm: bool = True) -> int:
 
 
 if __name__ == "__main__":
+    import sys as _sys
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-llm", action="store_true")
+    ap.add_argument("--log", metavar="FILE", help="Write full output to FILE (strips ANSI)")
     args = ap.parse_args()
+
+    if args.log:
+        import io, re as _re
+        _ansi = _re.compile(r'\x1b\[[0-9;]*m')
+
+        class _Tee:
+            def __init__(self, stream, path):
+                self._s = stream
+                self._f = open(path, "w")
+            def write(self, data):
+                self._s.write(data)
+                self._f.write(_ansi.sub("", data))
+            def flush(self):
+                self._s.flush()
+                self._f.flush()
+
+        _tee = _Tee(_sys.stdout, args.log)
+        _sys.stdout = _tee
+        print(f"# Sentinel demo log — {__import__('datetime').datetime.now().isoformat()}")
+        print(f"# Log: {args.log}\n")
+
     raise SystemExit(main(use_llm=not args.no_llm))
