@@ -2,64 +2,101 @@
 
 > Sentinel is an agentic test harness that validates the quality and reliability of AI-infused workflows — adversarially probing whether their built-in governance controls actually hold before an agent acts on production business systems.
 
-**UiPath AgentHack 2026 · Track 3: UiPath Test Cloud**
+**SF Hackathon 2026 · Prize Tracks: Main ($1,000 USD) · Wasmer ($5,000 credits) · Tenki ($10,000 credits)**
 
 ---
 
-## The problem
+## The Problem
 
-Enterprises are putting AI agents into real business processes, but two gaps make that risky:
+Enterprises are putting AI agents into real business processes, but two critical gaps make that risky:
 
-1. UiPath ships **detective guardrails** for agents — but no shipped way to **prove** they actually fire.
-2. Native evaluators score an agent's **correctness** and **behavior**, but not whether it took an action that **violates business policy while still looking correct** (e.g. skipping a required human approval).
+1. Systems ship **detective guardrails** for agents — but have no deterministic way to **prove** they actually fire.
+2. Native LLM-as-judge evaluators score an agent's **correctness** and **semantic tone**, but cannot prove whether an action took a path that **violates strict business policy while still looking correct** (e.g. skipping a required human approval or invoking unauthorized tools).
 
-Today teams re-validate agents by hand or ship blind. **Sentinel is the missing certification layer:** it stress-tests an agent's controls and produces evidence they hold — before the agent reaches production.
+Today teams re-validate agents by hand or ship blind. **Sentinel is the deterministic certification layer:** it stress-tests an agent's controls and produces auditable cryptographic evidence that they hold — before the agent reaches production.
 
-## What it does
+---
 
-1. Takes an AI-infused workflow (a UiPath Maestro flow containing an AI agent + a human-approval gate).
-2. Auto-generates focused **reliability test scenarios** native evaluations don't cover (HITL bypass, wait-state skip, tool-scope violation).
-3. Runs them on **UiPath Test Cloud**, capturing each run's trajectory.
-4. Renders a **verdict** from three layers: deterministic checks (this engine), **UiPath Agent Evaluations'** native LLM-as-judge (semantic similarity / faithfulness — we feed it, we don't rebuild it), and a hook-based pre-action interceptor as ground truth (this engine).
-5. Produces a **Reliability Report** and, on critical findings, auto-files a **Jira** ticket + **Slack** alert.
-6. Scores each run as a **Reliability Score (0–100)** and ranks every agent revision on a **leaderboard** — so a team watches a fix climb from FAILED to CERTIFIED across revisions. Sentinel isn't a one-shot test; it's a reliability **benchmark** for agents.
+## Key Architecture & Prize Tracks
 
-## How it works — a paired experiment
+Sentinel enforces governance through isolated, disposable execution boundaries where untrusted agent actions are evaluated against pure contracts:
+
+### 1. Main Track: Deterministic Policy Contracts & Benchmark Leaderboard
+- Evaluates agent actions against strict, machine-enforceable `PolicyContract` definitions (`allowed`, `approval_required`, `forbidden`).
+- Dual-oracle audit: real-time pre-action interception coupled with post-trajectory deterministic verification.
+- Tracks agent reliability scores (0–100) across revisions on an auditable leaderboard (FAILED → CERTIFIED).
+
+### 2. Wasmer Track: Ephemeral WebAssembly Sandbox (`sentinel/wasm_runner.py`)
+- Evaluates the interceptor inside a fresh WebAssembly container spawned via the Wasmer SDK.
+- The container executes the PolicyContract logic in a microsecond sandbox and is destroyed the moment the verdict returns.
+- **Zero persistent process. Zero state. Nothing to escape from.**
+
+### 3. Tenki Cloud Track: Remote Disposable Linux VM Sandboxes (`sentinel/tenki_runner.py`)
+- Offloads enforcement and adversarial scenario execution to remote ephemeral Linux VMs via the Tenki CLI.
+- Boots in sub-seconds with zero host filesystem access, isolated network boundaries, and per-second billing.
+- Demonstrates agent confinement inside cloud-native disposable virtualization.
+
+---
+
+## How It Works — A Paired Experiment
 
 Sentinel runs every scenario under two conditions:
 
-- **Detection (guardrail OFF):** the agent runs unguarded. A failing scenario is the evidence that, without controls, the violation *actually executes* in production.
-- **Enforcement (guardrail ON):** the pre-action interceptor blocks the violation before it executes. A passing scenario is the evidence that the control *prevents* it.
+- **Detection (Guardrail OFF):** The agent runs unguarded. Failing scenarios prove that, without controls, LLM-prompted violations *actually execute* against business tools (Score: **0 / 100 FAILED**).
+- **Enforcement (Guardrail ON):** The pre-action interceptor enforces the PolicyContract gate before any tool invocation. Passing scenarios prove the violation was blocked before execution (Score: **100 / 100 CERTIFIED**).
 
-Both halves are required — either one alone proves nothing. The **OFF → FAILED / ON → CERTIFIED** flip is the proof that the guardrails actually fire.
+Both halves are required — either one alone proves nothing. The **OFF → FAILED / ON → CERTIFIED** flip is deterministic proof that the control works.
 
-## Architecture
+---
 
-_(diagram added during build — see `docs/SENTINEL_DESIGN.md` for the full design)_
+## Test Suite & Verification
 
-## UiPath components used
-
-UiPath Test Cloud · Maestro · Agent Builder · Agent Evaluations · Action Center · API Workflows / Integration Service · UiPath for Coding Agents (Claude Code). External framework under test: CrewAI.
-
-## Built with coding agents
-
-Sentinel is built, tested, and deployed using **UiPath for Coding Agents (Claude Code)** via the UiPath CLI (`uip skills install --agent claude`). The build log is in `docs/BUILD_NOTES.md`.
-
-## Setup
+Sentinel is strictly tested with full deterministic regression coverage:
 
 ```bash
+# Set up environment
 python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/python -m pytest -v
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# Run full test suite (47 / 47 passing)
+pytest -v
 ```
 
-Prerequisites: Python 3.11+, and (for the agent-under-test and platform integration) Node.js 18+ with `@uipath/cli`, a UiPath Automation Cloud account, and CrewAI.
+```text
+tests/test_contracts.py ........                                         [ 17%]
+tests/test_e2e.py ...                                                    [ 23%]
+tests/test_interceptor.py .....                                          [ 34%]
+tests/test_leaderboard.py ...                                            [ 40%]
+tests/test_notify.py ..                                                  [ 44%]
+tests/test_red_agent.py .....                                            [ 55%]
+tests/test_report.py ...                                                 [ 61%]
+tests/test_scenarios.py ....                                             [ 70%]
+tests/test_score.py .....                                                [ 80%]
+tests/test_sut.py .....                                                  [ 91%]
+tests/test_verdict.py ....                                               [100%]
+============================== 47 passed in 0.72s ==============================
+```
 
-## Status
+---
 
-🚧 In active development for AgentHack 2026. Demo video: _(added in ship week)_.
+## Running the Demo
+
+Sentinel features a side-by-side terminal demo and synchronized AppKit teleprompter:
+
+```bash
+# Configure API keys in .env:
+# ANTHROPIC_API_KEY=...
+# WASMER_TOKEN=...
+# TENKI_SESSION=sentinel-demo
+
+# Launch split-screen demo
+bash run_demo.sh
+```
+
+---
 
 ## License
 
 [PolyForm Noncommercial 1.0.0](LICENSE) — free for noncommercial use.
-Commercial use requires a paid license: matrixbuilderops@proton.me
+Commercial licensing: matrixbuilderops@proton.me
