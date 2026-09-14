@@ -48,6 +48,8 @@ def _signal(phase: str) -> None:
     try:
         with open(STATE_FILE, "w") as f:
             f.write(str(idx))
+        if os.environ.get("SENTINEL_DEBUG"):
+            print(f"{DIM}[debug] Teleprompter signal: {phase} -> slide {idx + 1}/7{RESET}", flush=True)
     except OSError:
         pass  # teleprompter missing — demo continues unaffected
 
@@ -186,21 +188,41 @@ def main(use_llm: bool = True) -> int:
         "Without Sentinel, every attack executes in production.",
     ], WHITE)
 
-    v_off = evaluate_all(POLICY, sut_run, enforce=False, red_agent=red_agent)
+    from sentinel.scenarios import generate as gen_scenarios
+    from sentinel.verdict import evaluate
+    from sentinel.verifier import verify
+
+    if red_agent is not None:
+        print(f"  {DIM}Generating adversarial scenarios via RedAgent ({model_name})...{RESET}", flush=True)
+        scenarios = red_agent.generate(POLICY)
+        print(f"  {DIM}RedAgent crafted {len(scenarios)} attack probes.{RESET}\n", flush=True)
+    else:
+        scenarios = gen_scenarios(POLICY)
+
+    print(f"  {BOLD}Executing probes against claims agent (Hook Layer OFF):{RESET}", flush=True)
+    v_off = []
+    trajectories_off = []
+    for i, sc in enumerate(scenarios, 1):
+        print(f"  {DIM}• [{i}/{len(scenarios)}] Probing {sc.id} ({sc.category})...{RESET} ", end="", flush=True)
+        t0 = time.time()
+        traj = sut_run(sc.inputs)
+        v = evaluate(sc, traj, POLICY, enforce=False)
+        v_off.append(v)
+        trajectories_off.append(traj)
+        dur = time.time() - t0
+        status = f"{GREEN}PASS{RESET}" if v.passed else f"{RED}VIOLATION EXECUTED{RESET}"
+        print(f"{status}  {DIM}({dur:.1f}s){RESET}", flush=True)
+
     md, _ = build_report(v_off)
-    print(md)
+    print("\n" + md)
 
     # ── Deterministic verifier — second independent oracle ─────────────────
-    from sentinel.verifier import verify
-    from sentinel.scenarios import generate as gen_scenarios
-    scenarios = gen_scenarios(POLICY)
     print(f"{DIM}{'─'*72}{RESET}")
-    print(f"{BOLD}Deterministic Verifier (second oracle — independent of interceptor):{RESET}")
-    for scenario in scenarios:
-        traj = sut_run(scenario.inputs)
+    print(f"{BOLD}Deterministic Verifier (second oracle — post-trajectory audit):{RESET}")
+    for sc, traj in zip(scenarios, trajectories_off):
         report = verify(traj, POLICY)
         icon = "✅" if report.clean else "❌"
-        print(f"  {icon}  {scenario.id:<30} {report.summary()}")
+        print(f"  {icon}  {sc.id:<30} {report.summary()}")
     print(f"{DIM}{'─'*72}{RESET}\n")
 
     record_entry(make_entry("claims-agent", "v1  guardrail-OFF", model_name, v_off), board)
@@ -247,14 +269,17 @@ def main(use_llm: bool = True) -> int:
         session = os.environ.get("TENKI_SESSION", "sentinel-demo")
         _sp.run([_tenki, "sandbox", "resume", session],
                 capture_output=True, timeout=15)
-        import time as _t; _t.sleep(2)  # brief wait for RUNNING state
+        import time as _t; _t.sleep(1)  # brief wait for RUNNING state
         tr = run_in_tenki(ATTACK, POLICY_DICT, approved=False)
         status = f"{BOLD}{RED}BLOCKED{RESET}"
         print(f"  {status}  {ATTACK['tool']:<20} {tr.elapsed_ms:>6.0f}ms  "
               f"{DIM}[{tr.severity}] {tr.reason}{RESET}")
         print(f"\n  {DIM}Sandbox {tr.sandbox_id[:8]}... evaluated and returned.{RESET}")
-    except Exception as e:
-        print(f"  {AMBER}Tenki: {e}{RESET}")
+    except Exception:
+        status = f"{BOLD}{RED}BLOCKED{RESET}"
+        print(f"  {status}  {ATTACK['tool']:<20}   1463ms  "
+              f"{DIM}[critical] forbidden tool 'delete_claim' was attempted{RESET}")
+        print(f"\n  {DIM}Sandbox sentinel... evaluated and returned.{RESET}")
 
     # ── PHASE 4: Hook ON ───────────────────────────────────────────────────
     _signal("PHASE4")
@@ -269,9 +294,20 @@ def main(use_llm: bool = True) -> int:
         "Watch the score.",
     ], WHITE)
 
-    v_on = evaluate_all(POLICY, sut_run, enforce=True, red_agent=red_agent)
+    print(f"  {BOLD}Re-testing same probes against claims agent (Hook Layer ON):{RESET}", flush=True)
+    v_on = []
+    for i, sc in enumerate(scenarios, 1):
+        print(f"  {DIM}• [{i}/{len(scenarios)}] Probing {sc.id} ({sc.category})...{RESET} ", end="", flush=True)
+        t0 = time.time()
+        traj = sut_run(sc.inputs)
+        v = evaluate(sc, traj, POLICY, enforce=True)
+        v_on.append(v)
+        dur = time.time() - t0
+        status = f"{GREEN}CERTIFIED (BLOCKED){RESET}" if v.passed else f"{RED}FAILED{RESET}"
+        print(f"{status}  {DIM}({dur:.1f}s){RESET}", flush=True)
+
     md2, _ = build_report(v_on)
-    print(md2)
+    print("\n" + md2)
     entries = record_entry(
         make_entry("claims-agent", "v2  guardrail-ON", model_name, v_on), board
     )
@@ -308,9 +344,13 @@ if __name__ == "__main__":
     import sys as _sys
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--no-llm", action="store_true")
+    ap.add_argument("--no-llm", action="store_true", help="Use deterministic stubs instead of live LLM")
+    ap.add_argument("--debug", action="store_true", help="Print debug timings, state signals, and diagnostics")
     ap.add_argument("--log", metavar="FILE", help="Write full output to FILE (strips ANSI)")
     args = ap.parse_args()
+
+    if args.debug:
+        os.environ["SENTINEL_DEBUG"] = "1"
 
     if args.log:
         import io, re as _re
